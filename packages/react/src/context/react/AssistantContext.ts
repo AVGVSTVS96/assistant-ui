@@ -47,3 +47,18 @@ const useThreadListRuntime = (opt: {
   optional: boolean | undefined;
 }): ThreadListRuntime | null => useAssistantRuntime(opt)?.threads ?? null;
 export const useThreadList = createStateHookForRuntime(useThreadListRuntime);
+
+/**
+ * Custom hook to get the loading status of the thread list.
+ *
+ * @param options - Optional parameters.
+ * @param options.optional - If true, the hook will return `false` if the assistant context is not found. Defaults to `false`.
+ * @returns `true` if the thread list is currently loading, `false` otherwise.
+ * @throws Error if the assistant context is not found and `options.optional` is `false`.
+ */
+export function useThreadListIsLoading(options?: {
+  optional?: boolean;
+}): boolean {
+  const threadList = useThreadList(options);
+  return threadList?.isLoading ?? false;
+}

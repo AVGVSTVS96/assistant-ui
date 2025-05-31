@@ -60,3 +60,18 @@ export function useThreadModelContext(options?: {
   if (!runtime) return null;
   return runtime?.getModelContext();
 }
+
+/**
+ * Custom hook to get the message loading status of the current thread.
+ *
+ * @param options - Optional parameters.
+ * @param options.optional - If true, the hook will return `false` if the thread context is not found. Defaults to `false`.
+ * @returns `true` if messages are currently loading for the thread, `false` otherwise.
+ * @throws Error if the thread context is not found and `options.optional` is `false`.
+ */
+export function useThreadMessagesIsLoading(options?: {
+  optional?: boolean;
+}): boolean {
+  const thread = useThread(options);
+  return thread?.isLoadingMessages ?? false;
+}

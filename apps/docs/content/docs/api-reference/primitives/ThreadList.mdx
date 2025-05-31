@@ -1,0 +1,132 @@
+---
+title: ThreadListPrimitive
+---
+import { ThreadListPrimitive } from "@assistantui/react";
+import { MyThreadListItemComponent, MyLoadingSkeleton } from "../../../../../../components/docs/customComponents/MyCustomComponents"; // Adjusted placeholder path
+import { ParametersTable } from "@/components/docs";
+
+# ThreadListPrimitive
+
+Provides primitives for building a thread list UI. For a complete example, see the [ThreadList guide](/docs/guides/thread-list).
+
+## Anatomy
+
+```tsx
+import { ThreadListPrimitive } from "@assistantui/react";
+import { MyThreadListItemComponent, MyLoadingSkeleton } from "./MyCustomComponents"; // Placeholder
+
+const ThreadList = () => (
+  <ThreadListPrimitive.Root>
+    <ThreadListPrimitive.If isLoading={true}>
+      <MyLoadingSkeleton message="Loading threads..." />
+    </ThreadListPrimitive.If>
+    <ThreadListPrimitive.If isLoading={false}>
+      <ThreadListPrimitive.Items components={{ ThreadListItem: MyThreadListItemComponent }} />
+    </ThreadListPrimitive.If>
+    <ThreadListPrimitive.New>
+      <button>New Thread</button>
+    </ThreadListPrimitive.New>
+  </ThreadListPrimitive.Root>
+);
+```
+
+## API Reference
+
+### Root
+
+The root container for all parts of the thread list.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ThreadListPrimitiveRootProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      description: "Whether to render as a child component.",
+      default: "false",
+    },
+  ]}
+/>
+
+### Items
+
+Renders the list of threads.
+
+<ParametersTable
+  type="ThreadListPrimitiveItemsProps"
+  parameters={[
+    {
+      name: "components",
+      type: "object",
+      description: "Components to use for rendering items.",
+      children: [
+        {
+          type: "object",
+          parameters: [
+            {
+              name: "ThreadListItem",
+              type: "ComponentType<ThreadListItemPrimitiveProps>",
+              description: "Component to render for each thread list item.",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: "archived",
+      type: "boolean",
+      description: "Whether to display archived threads instead of active threads.",
+      default: "false",
+    },
+  ]}
+/>
+
+### New
+
+A button or trigger to create a new thread. When clicked, it switches to a new thread context.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ThreadListPrimitiveNewProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      description: "Whether to render as a child component.",
+      default: "false",
+    },
+  ]}
+/>
+
+### If
+
+Conditionally renders its children based on the thread list's loading state.
+
+<ParametersTable
+  type="ThreadListPrimitiveIfProps"
+  parameters={[
+    {
+      name: "isLoading",
+      type: "boolean",
+      description:
+        "If true, children render if the thread list is loading. If false, children render if the thread list is NOT loading.",
+    },
+  ]}
+/>
+
+**Example**
+
+```tsx
+import { ThreadListPrimitive } from "@assistantui/react";
+import { MyLoadingSkeleton, MyThreadListItemComponent } from "./MyCustomComponents"; // Placeholder
+
+<ThreadListPrimitive.If isLoading={true}>
+  <MyLoadingSkeleton message="Loading threads..." />
+</ThreadListPrimitive.If>
+<ThreadListPrimitive.If isLoading={false}>
+  <ThreadListPrimitive.Items components={{ ThreadListItem: MyThreadListItemComponent }} />
+</ThreadListPrimitive.If>
+```

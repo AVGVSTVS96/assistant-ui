@@ -29,3 +29,48 @@ const threads = useThreadList((m) => m.threads);
 ```
 
 <ParametersTable {...ThreadListState} />
+
+> Note: The `isLoading: boolean` field indicates if the thread list is currently being loaded. This is typically `true` when `triggerLoadThreads()` has been called and the operation is in progress.
+
+The `ThreadListRuntime` object also provides a `triggerLoadThreads(): Promise<void>` method. This method initiates the loading of threads. It sets `isLoading` to `true` at the start and `false` once completed or failed. You can use this to explicitly refresh or load the thread list.
+
+### `useThreadListIsLoading`
+
+A convenience hook to specifically access the loading status of the thread list.
+
+**Signature:**
+```typescript
+function useThreadListIsLoading(options?: { optional?: boolean }): boolean;
+```
+
+**Returns:**
+- `boolean`: `true` if the thread list is currently loading, `false` otherwise. Defaults to `false` if the assistant context is not found and `options.optional` is true.
+
+**Example:**
+```tsx
+import { useThreadListIsLoading, useAssistantRuntime } from "@assistant-ui/react";
+import { MyLoadingSpinner, MyThreadDisplay } from "./MyCustomComponents"; // Placeholder
+
+function MyThreadListNavigator() {
+  const isLoading = useThreadListIsLoading();
+  const assistantRuntime = useAssistantRuntime();
+
+  const handleRefreshThreads = () => {
+    assistantRuntime.threads.triggerLoadThreads().catch(err => {
+      console.error("Failed to load threads:", err);
+      // Handle error appropriately
+    });
+  };
+
+  if (isLoading) {
+    return <MyLoadingSpinner message="Loading threads..." />;
+  }
+
+  return (
+    <div>
+      <button onClick={handleRefreshThreads}>Refresh Threads</button>
+      <MyThreadDisplay /> {/* Placeholder for actual thread list display */}
+    </div>
+  );
+}
+```

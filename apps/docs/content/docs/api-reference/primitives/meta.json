@@ -3,6 +3,7 @@
   "pages": [
     "AssistantModal",
     "Thread",
+    "ThreadList",
     "Composer",
     "Message",
     "Error",

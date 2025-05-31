@@ -172,11 +172,13 @@ export type ThreadState = {
    * @deprecated This API is still under active development and might change without notice.
    */
   readonly speech: SpeechState | undefined;
+  readonly isLoadingMessages: boolean;
 };
 
 export const getThreadState = (
   runtime: ThreadRuntimeCore,
   threadListItemState: ThreadListItemState,
+  isLoadingMessages: boolean,
 ): ThreadState => {
   const lastMessage = runtime.messages.at(-1);
   return Object.freeze({
@@ -193,6 +195,7 @@ export const getThreadState = (
     suggestions: runtime.suggestions,
     extras: runtime.extras,
     speech: runtime.speech,
+    isLoadingMessages,
   });
 };
 
@@ -277,6 +280,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     return this._threadBinding;
   }
 
+  private _isLoadingMessages: boolean = false;
   private readonly _threadBinding: ThreadRuntimeCoreBinding & {
     getStateState(): ThreadState;
   };
@@ -285,12 +289,15 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     threadBinding: ThreadRuntimeCoreBinding,
     threadListItemBinding: ThreadListItemRuntimeBinding,
   ) {
+    this._isLoadingMessages = true;
+
     const stateBinding = new ShallowMemoizeSubject({
       path: threadBinding.path,
       getState: () =>
         getThreadState(
           threadBinding.getState(),
           threadListItemBinding.getState(),
+          this._isLoadingMessages,
         ),
       subscribe: (callback) => {
         const sub1 = threadBinding.subscribe(callback);
@@ -309,6 +316,16 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
       outerSubscribe: (callback) => threadBinding.outerSubscribe(callback),
       subscribe: (callback) => threadBinding.subscribe(callback),
     };
+
+    // When the thread is initialized (e.g., messages are loaded from storage),
+    // set isLoadingMessages to false.
+    threadBinding.getState().unstable_on("initialize", () => {
+      this._isLoadingMessages = false;
+      // Reactivity Note: For this change to be immediately reflected in subscribed UI components,
+      // the ShallowMemoizeSubject (stateBinding) would need to be explicitly updated,
+      // or a notification mechanism triggered.
+      // Currently, subscribers will see this change upon the next core event that triggers a re-evaluation.
+    });
 
     this.composer = new ThreadComposerRuntimeImpl(
       new NestedSubscriptionSubject({

@@ -11,11 +11,15 @@ The `makeAssistantTool` utility creates a React component that registers a tool 
 
 This component itself renders `null` and is typically used for its side-effect of registering the tool definition.
 
-<Callout title="Tool Definition Source">
+<Callout>
+  **Tool Definition Source**
+
   The `makeAssistantTool` component takes a tool definition object. This definition is usually created using the `tool()` helper function from `@assistant-ui/react` for convenience and type safety.
 </Callout>
 
-<Callout title="Client-Side Invocation with frontendTools" intent="warn">
+<Callout intent="warn">
+  **Client-Side Invocation with frontendTools**
+
   `makeAssistantTool` defines the *server-side callable* aspect of your tool. To make tools invokable from the user interface (e.g., as a button suggested by the AI), you'll typically use `frontendTools`.
 
   `frontendTools` are part of the AI SDK integration, often configured via `useChatAdapter` (or similar hooks) from packages like `@assistant-ui/react-ai-sdk`. The `name` used in your `frontendTool` configuration must exactly match the `name` of the tool registered via `makeAssistantTool`.
@@ -110,7 +114,7 @@ This function creates a React component that handles the lifecycle of a tool's r
 #### Returns
 
 A React functional component that:
-- When mounted: Registers the tool definition with the Assistant runtime.
+- When mounted: Registers the provided tool definition with the Assistant runtime.
 - When unmounted: Automatically unregisters the tool.
 - Renders `null` (it does not produce any visible DOM elements itself).
 

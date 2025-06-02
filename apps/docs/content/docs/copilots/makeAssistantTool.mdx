@@ -1,0 +1,210 @@
+---
+title: makeAssistantTool
+---
+
+import { ParametersTable } from "@/components/docs";
+import { Callout } from "fumadocs-ui/components/callout";
+
+# `makeAssistantTool`
+
+The `makeAssistantTool` utility creates a React component that registers a tool with the Assistant runtime. This is essential for defining server-side tools (and their argument schemas) that the AI can invoke.
+
+This component itself renders `null` and is typically used for its side-effect of registering the tool definition.
+
+<Callout title="Tool Definition">
+  The `makeAssistantTool` component takes a tool definition object. This definition is usually created using the `tool()` helper function from `@assistant-ui/react` for convenience and type safety.
+</Callout>
+
+## Usage
+
+The primary way to use `makeAssistantTool` is by first defining your tool with the `tool()` helper:
+
+```tsx
+import { makeAssistantTool, tool } from "@assistant-ui/react";
+import { z } from "zod";
+
+// 1. Define the tool using the tool() helper
+const submitFormToolDefinition = tool({
+  name: "submitForm",
+  description: "Submits a form with email and name.",
+  parameters: z.object({
+    email: z.string().email({ message: "Invalid email format" }),
+    name: z.string().min(1, { message: "Name cannot be empty" }),
+  }),
+  execute: async ({ email, name }) => {
+    // Your actual form submission logic here
+    console.log("Form submitted:", { email, name });
+    return { success: true, message: `Form submitted for ${name} <${email}>` };
+  },
+});
+
+// 2. Create a tool component using makeAssistantTool
+const SubmitFormTool = makeAssistantTool(submitFormToolDefinition);
+
+// 3. Use the tool component in your application
+// This component doesn't render anything visible but registers the tool.
+function MyAssistantSetup() {
+  return (
+    <>
+      {/* ... other assistant setup components ... */}
+      <SubmitFormTool />
+      {/* You can register multiple tools */}
+    </>
+  );
+}
+```
+
+## API
+
+### `makeAssistantTool(definition)`
+
+#### Parameters
+
+<ParametersTable
+  type="ToolDefinition<TName, TArgs, TResult>"
+  parameters={[
+    {
+      name: "definition",
+      type: "object",
+      description: "An object defining the tool. Typically created using the `tool()` helper.",
+      children: [
+        {
+          name: "name",
+          type: "string",
+          required: true,
+          description: "The unique name of the tool. This is used by the AI to identify and call the tool.",
+        },
+        {
+          name: "description",
+          type: "string",
+          description: "A description of what the tool does. This helps the AI understand when and how to use the tool.",
+        },
+        {
+          name: "parameters",
+          type: "Zod Schema",
+          required: true,
+          description: "A Zod schema defining the arguments the tool expects. The AI will attempt to generate arguments matching this schema.",
+        },
+        {
+          name: "execute",
+          type: "(args: TArgs) => Promise<TResult>",
+          required: true,
+          description: "The asynchronous function that implements the tool's behavior. It receives the parsed arguments (matching the `parameters` schema) and should return a result.",
+        },
+      ],
+    },
+  ]}
+/>
+
+#### Returns
+
+A React functional component that, when mounted:
+- Registers the provided tool definition with the Assistant runtime.
+- Automatically unregisters the tool when unmounted.
+- Renders `null` (it does not produce any visible DOM elements).
+
+## Examples
+
+### Basic Tool Registration
+
+This is similar to the Usage section, showing a single tool for getting weather information.
+
+```tsx
+import { makeAssistantTool, tool } from "@assistant-ui/react";
+import { z } from "zod";
+
+// Define the tool
+const getWeatherToolDefinition = tool({
+  name: "getWeather",
+  description: "Gets the current weather for a specified location.",
+  parameters: z.object({
+    location: z.string().describe("The city and state, e.g., San Francisco, CA"),
+  }),
+  execute: async ({ location }) => {
+    // In a real app, you'd call a weather API here
+    if (location.toLowerCase().includes("tokyo")) {
+      return { temperature: "15°C", condition: "Sunny" };
+    }
+    return { temperature: "20°C", condition: "Cloudy" };
+  },
+});
+
+// Create the tool component
+const GetWeatherTool = makeAssistantTool(getWeatherToolDefinition);
+
+// In your assistant setup:
+// <GetWeatherTool />
+```
+
+### Registering Multiple Tools
+
+You can register multiple tools by simply including their respective components.
+
+```tsx
+import { makeAssistantTool, tool } from "@assistant-ui/react";
+import { z } from "zod";
+import { AssistantRuntimeProvider } from "@assistant-ui/react"; // Assuming a runtime provider setup
+
+// Tool 1: Validate Email
+const validateEmailToolDefinition = tool({
+  name: "validateEmail",
+  description: "Checks if an email address is valid.",
+  parameters: z.object({
+    email: z.string().email(),
+  }),
+  execute: async ({ email }) => {
+    // Basic validation for example purposes
+    const isValid = email.includes("@") && email.includes(".");
+    return { isValid, reason: isValid ? "Valid email" : "Invalid email format" };
+  },
+});
+const ValidateEmailTool = makeAssistantTool(validateEmailToolDefinition);
+
+// Tool 2: Send Email
+const sendEmailToolDefinition = tool({
+  name: "sendEmail",
+  description: "Sends an email.",
+  parameters: z.object({
+    to: z.string().email(),
+    subject: z.string(),
+    body: z.string(),
+  }),
+  execute: async (params) => {
+    console.log("Sending email:", params);
+    // Actual email sending logic would go here
+    return { sent: true, messageId: `fake-${Date.now()}` };
+  },
+});
+const SendEmailTool = makeAssistantTool(sendEmailToolDefinition);
+
+// Example App Setup
+function AppWithTools() {
+  // const runtime = useYourAssistantRuntime(); // Replace with your runtime setup
+  return (
+    {/* <AssistantRuntimeProvider runtime={runtime}> */}
+      {/* ... other components ... */}
+      <ValidateEmailTool />
+      <SendEmailTool />
+      {/* Your chat UI components */}
+    {/* </AssistantRuntimeProvider> */}
+  );
+}
+```
+In this example, both `ValidateEmailTool` and `SendEmailTool` would be mounted, making the "validateEmail" and "sendEmail" tools available to the AI.
+
+## Best Practices
+
+1.  **Clear Naming and Descriptions:** Use descriptive names and clear, concise descriptions for your tools and their parameters. This is crucial for the AI to effectively understand and use them.
+2.  **Robust Parameter Validation:**
+    *   Always use Zod schemas to define parameters. This provides strong validation and helps the AI generate correct arguments.
+    *   Be specific about parameter types (e.g., `string`, `number`, `boolean`, specific formats like `email`) and constraints (e.g., `min`, `max`, `optional`).
+    *   Provide helpful error messages in your Zod schema descriptions or refinements if possible, as these can sometimes be surfaced.
+3.  **Idempotency and Error Handling in `execute`:**
+    *   Design `execute` functions to be idempotent if possible (i.e., calling them multiple times with the same arguments produces the same result or side-effect).
+    *   Return meaningful results or error information from `execute`. If an error occurs, the AI might be able to use this information to retry or inform the user.
+    *   Handle asynchronous errors within `execute` appropriately (e.g., using `try/catch` for `async` functions).
+4.  **Tool Granularity (Composition):**
+    *   Break down complex operations into smaller, more focused tools. This makes tools easier for the AI to understand and combine.
+    *   Consider tool dependencies and how they might interact.
+5.  **Security:** Be mindful of the operations your tools perform. Since the AI can invoke these tools with generated arguments, ensure that the `execute` functions have appropriate safeguards against unintended actions, especially if they interact with external services or databases.
+```

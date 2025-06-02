@@ -11,8 +11,16 @@ The `makeAssistantTool` utility creates a React component that registers a tool 
 
 This component itself renders `null` and is typically used for its side-effect of registering the tool definition.
 
-<Callout title="Tool Definition">
+<Callout title="Tool Definition Source">
   The `makeAssistantTool` component takes a tool definition object. This definition is usually created using the `tool()` helper function from `@assistant-ui/react` for convenience and type safety.
+</Callout>
+
+<Callout title="Client-Side Invocation with frontendTools" intent="warn">
+  `makeAssistantTool` defines the *server-side callable* aspect of your tool. To make tools invokable from the user interface (e.g., as a button suggested by the AI), you'll typically use `frontendTools`.
+
+  `frontendTools` are part of the AI SDK integration, often configured via `useChatAdapter` (or similar hooks) from packages like `@assistant-ui/react-ai-sdk`. The `name` used in your `frontendTool` configuration must exactly match the `name` of the tool registered via `makeAssistantTool`.
+
+  This page focuses on `makeAssistantTool`. For client-side invocation, please refer to the relevant AI SDK documentation (e.g., Vercel AI SDK guide).
 </Callout>
 
 ## Usage
@@ -21,42 +29,45 @@ The primary way to use `makeAssistantTool` is by first defining your tool with t
 
 ```tsx
 import { makeAssistantTool, tool } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react"; // Or your specific runtime provider
 import { z } from "zod";
 
-// 1. Define the tool using the tool() helper
+// 1. Define the tool
 const submitFormToolDefinition = tool({
   name: "submitForm",
-  description: "Submits a form with email and name.",
+  description: "Submits a form with the user's email and name.",
   parameters: z.object({
-    email: z.string().email({ message: "Invalid email format" }),
-    name: z.string().min(1, { message: "Name cannot be empty" }),
+    email: z.string().email({ message: "A valid email is required." }),
+    name: z.string().min(1, { message: "Name cannot be empty." }),
   }),
   execute: async ({ email, name }) => {
-    // Your actual form submission logic here
-    console.log("Form submitted:", { email, name });
-    return { success: true, message: `Form submitted for ${name} <${email}>` };
+    console.log("Server-side execution: Form submitted", { email, name });
+    // Your actual form submission logic would be here
+    return { success: true, message: `Form processed for ${name}.` };
   },
 });
 
-// 2. Create a tool component using makeAssistantTool
+// 2. Create the registration component
 const SubmitFormTool = makeAssistantTool(submitFormToolDefinition);
 
-// 3. Use the tool component in your application
-// This component doesn't render anything visible but registers the tool.
-function MyAssistantSetup() {
+// 3. Mount the component within your Assistant's context
+function MyAssistantApp() {
+  // const runtime = useYourSpecificRuntime(); // Initialize your runtime
   return (
-    <>
-      {/* ... other assistant setup components ... */}
-      <SubmitFormTool />
-      {/* You can register multiple tools */}
-    </>
+    {/* <AssistantRuntimeProvider runtime={runtime}> */}
+      {/* ... Other assistant components and UI ... */}
+      <SubmitFormTool /> {/* Registers the 'submitForm' tool */}
+    {/* </AssistantRuntimeProvider> */}
   );
 }
 ```
+By including `<SubmitFormTool />` in your component tree (within the scope of an `AssistantRuntimeProvider`), the "submitForm" tool becomes available for the AI to use.
 
 ## API
 
 ### `makeAssistantTool(definition)`
+
+This function creates a React component that handles the lifecycle of a tool's registration.
 
 #### Parameters
 
@@ -66,30 +77,30 @@ function MyAssistantSetup() {
     {
       name: "definition",
       type: "object",
-      description: "An object defining the tool. Typically created using the `tool()` helper.",
+      description: "The tool definition object, typically created using the `tool()` helper.",
       children: [
         {
           name: "name",
           type: "string",
           required: true,
-          description: "The unique name of the tool. This is used by the AI to identify and call the tool.",
+          description: "A unique name for the tool. This is used by the AI to identify and call the tool, and must match any corresponding `frontendTool` name.",
         },
         {
           name: "description",
           type: "string",
-          description: "A description of what the tool does. This helps the AI understand when and how to use the tool.",
+          description: "(Highly Recommended) A clear description of what the tool does, when to use it, and what it's for. This is critical for the AI to use the tool effectively.",
         },
         {
           name: "parameters",
           type: "Zod Schema",
           required: true,
-          description: "A Zod schema defining the arguments the tool expects. The AI will attempt to generate arguments matching this schema.",
+          description: "A Zod schema (e.g., `z.object({...})`) defining the arguments the tool expects. The AI will attempt to generate arguments matching this schema. Use `.describe()` on schema fields for more detailed instructions to the AI.",
         },
         {
           name: "execute",
           type: "(args: TArgs) => Promise<TResult>",
           required: true,
-          description: "The asynchronous function that implements the tool's behavior. It receives the parsed arguments (matching the `parameters` schema) and should return a result.",
+          description: "The asynchronous function that implements the tool's server-side behavior. It receives the parsed arguments (matching the `parameters` schema) and should return a JSON-serializable result.",
         },
       ],
     },
@@ -98,10 +109,10 @@ function MyAssistantSetup() {
 
 #### Returns
 
-A React functional component that, when mounted:
-- Registers the provided tool definition with the Assistant runtime.
-- Automatically unregisters the tool when unmounted.
-- Renders `null` (it does not produce any visible DOM elements).
+A React functional component that:
+- When mounted: Registers the tool definition with the Assistant runtime.
+- When unmounted: Automatically unregisters the tool.
+- Renders `null` (it does not produce any visible DOM elements itself).
 
 ## Examples
 

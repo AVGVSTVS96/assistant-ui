@@ -7,6 +7,7 @@ export {
   useThreadList,
   useToolUIs,
   useToolUIsStore,
+  useThreadListIsLoading,
 } from "./AssistantContext";
 
 export {
@@ -18,6 +19,7 @@ export {
    * @deprecated This method was renamed to `useThreadModelContext`.
    */
   useThreadModelContext as useThreadModelConfig,
+  useThreadMessagesIsLoading,
 } from "./ThreadContext";
 
 export {

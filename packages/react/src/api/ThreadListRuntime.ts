@@ -21,6 +21,7 @@ export type ThreadListState = {
   readonly newThread: string | undefined;
   readonly threads: readonly string[];
   readonly archivedThreads: readonly string[];
+  readonly isLoading: boolean;
 };
 
 export type ThreadListRuntime = {
@@ -38,17 +39,6 @@ export type ThreadListRuntime = {
 
   switchToThread(threadId: string): Promise<void>;
   switchToNewThread(): Promise<void>;
-};
-
-const getThreadListState = (
-  threadList: ThreadListRuntimeCore,
-): ThreadListState => {
-  return {
-    mainThreadId: threadList.mainThreadId,
-    newThread: threadList.newThreadId,
-    threads: threadList.threadIds,
-    archivedThreads: threadList.archivedThreadIds,
-  };
 };
 
 const getThreadListItemState = (
@@ -73,6 +63,8 @@ const getThreadListItemState = (
 export type ThreadListRuntimeCoreBinding = ThreadListRuntimeCore;
 
 export class ThreadListRuntimeImpl implements ThreadListRuntime {
+  private _isLoading: boolean = false;
+  private _currentLoadPromise: Promise<void> | undefined;
   private _getState;
   constructor(
     private _core: ThreadListRuntimeCoreBinding,
@@ -83,7 +75,13 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
   ) {
     const stateBinding = new LazyMemoizeSubject({
       path: {},
-      getState: () => getThreadListState(_core),
+      getState: () => ({
+        mainThreadId: _core.mainThreadId,
+        newThread: _core.newThreadId,
+        threads: _core.threadIds,
+        archivedThreads: _core.archivedThreadIds,
+        isLoading: this._isLoading,
+      }),
       subscribe: (callback) => _core.subscribe(callback),
     });
 
@@ -125,6 +123,26 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     this.getItemById = this.getItemById.bind(this);
     this.getItemByIndex = this.getItemByIndex.bind(this);
     this.getArchivedItemByIndex = this.getArchivedItemByIndex.bind(this);
+  }
+
+  public triggerLoadThreads(): Promise<void> {
+    if (this._isLoading && this._currentLoadPromise) {
+      return this._currentLoadPromise;
+    }
+
+    this._isLoading = true;
+    // TODO: Notify subscribers about isLoading change (important for reactivity)
+    // This might require changing how stateBinding is updated, e.g., by adding a dedicated notifier
+    // or ensuring _core.subscribe() is triggered appropriately.
+    // For now, getState() will reflect the change when called.
+
+    this._currentLoadPromise = this._core.getLoadThreadsPromise().finally(() => {
+      this._isLoading = false;
+      this._currentLoadPromise = undefined;
+      // TODO: Notify subscribers about isLoading change (important for reactivity)
+    });
+
+    return this._currentLoadPromise;
   }
 
   public switchToThread(threadId: string): Promise<void> {

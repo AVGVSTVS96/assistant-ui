@@ -34,6 +34,37 @@ const isRunning = useThread((m) => m.isRunning);
 
 <ParametersTable {...ThreadState} />
 
+> Note: The `isLoadingMessages: boolean` field indicates if the messages for the thread are currently being loaded, which is typically true on initial mount or if a reload is triggered.
+
+### `useThreadMessagesIsLoading`
+
+A convenience hook to specifically access the message loading status of the current thread.
+
+**Signature:**
+```typescript
+function useThreadMessagesIsLoading(options?: { optional?: boolean }): boolean;
+```
+
+**Returns:**
+- `boolean`: `true` if messages are currently loading for the thread, `false` otherwise. Defaults to `false` if the thread context is not found and `options.optional` is true.
+
+**Example:**
+```tsx
+import { useThreadMessagesIsLoading } from "@assistant-ui/react";
+import { MyLoadingSpinner } from "./MyCustomComponents"; // Placeholder
+
+function MyThreadComponent() {
+  const isLoading = useThreadMessagesIsLoading();
+
+  if (isLoading) {
+    return <MyLoadingSpinner />;
+  }
+
+  // Render thread content...
+  return <>...</>;
+}
+```
+
 ### `useThreadViewport`
 
 Manage thread viewport state (e.g., scrolling):

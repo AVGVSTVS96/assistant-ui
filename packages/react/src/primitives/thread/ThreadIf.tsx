@@ -8,6 +8,7 @@ type ThreadIfFilters = {
   empty: boolean | undefined;
   running: boolean | undefined;
   disabled: boolean | undefined;
+  isLoadingMessages?: boolean | undefined;
 };
 
 type UseThreadIfProps = RequireAtLeastOne<ThreadIfFilters>;
@@ -20,6 +21,8 @@ const useThreadIf = (props: UseThreadIfProps) => {
     if (props.running === false && thread.isRunning) return false;
     if (props.disabled === true && !thread.isDisabled) return false;
     if (props.disabled === false && thread.isDisabled) return false;
+    if (props.isLoadingMessages === true && !thread.isLoadingMessages) return false;
+    if (props.isLoadingMessages === false && thread.isLoadingMessages) return false;
 
     return true;
   });

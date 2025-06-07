@@ -184,14 +184,40 @@ Renders children if a condition is met.
       type: "boolean | undefined",
       description: "Render children if the thread is running.",
     },
+    {
+      name: "disabled",
+      type: "boolean | undefined",
+      description: "Render children if the thread is disabled.",
+    },
+    {
+      name: "isLoadingMessages",
+      type: "boolean | undefined",
+      description:
+        "Render children if the thread is currently loading messages. For example, on initial load.",
+    },
   ]}
 />
 
 ```tsx
-<Thread.If empty>
-  {/* equivalent to <Thread.Empty> */}
-</Thread.If>
-<Thread.If empty={false}>
-  {/* rendered if thread is not empty */}
-</Thread.If>
+import { ThreadPrimitive } from "@assistant-ui/react"; // Assuming Thread is an alias or part of a composed component
+import { MyLoadingSkeleton } from "./MyCustomComponents"; // Placeholder for your skeleton component
+
+// Example for empty state
+<ThreadPrimitive.If empty>
+  <p>No messages yet. Start the conversation!</p>
+</ThreadPrimitive.If>
+
+// Example for running state
+<ThreadPrimitive.If running>
+  <p>Assistant is typing...</p>
+</ThreadPrimitive.If>
+
+// Example for isLoadingMessages state
+<ThreadPrimitive.If isLoadingMessages={true}>
+  <MyLoadingSkeleton message="Loading messages..." />
+</ThreadPrimitive.If>
+
+<ThreadPrimitive.If isLoadingMessages={false}>
+  {/* Render messages or other content when not loading */}
+</ThreadPrimitive.If>
 ```

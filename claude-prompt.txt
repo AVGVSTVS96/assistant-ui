@@ -1,0 +1,614 @@
+You are generating API documentation for assistant-ui, a React component library for building AI chat interfaces.
+
+Your task:
+1. Analyze the git diff below for API changes (new/modified components, hooks, types, exports)
+2. Generate clean, factual documentation for any API changes found
+3. Write the documentation to a file called docs/api-changes-pr-$PR_NUMBER.md
+
+Documentation should include:
+- New components with prop interfaces and usage examples
+- Modified components with changes highlighted
+- New hooks with parameters, return types, and examples
+- Breaking changes with migration guidance
+- All examples should use TypeScript and import from @assistant-ui/react
+
+If no API changes are found, write a file saying "No API changes detected in this PR."
+
+PR Context:
+PR #4:  feat: Support export of loading state for ThreadList and ThreadMessages
+
+Changed files:
+apps/docs/content/docs/api-reference/primitives/Thread.mdx
+apps/docs/content/docs/api-reference/primitives/ThreadList.mdx
+apps/docs/content/docs/api-reference/primitives/meta.json
+apps/docs/content/docs/api-reference/runtimes/ThreadListRuntime.mdx
+apps/docs/content/docs/api-reference/runtimes/ThreadRuntime.mdx
+packages/react/src/api/ThreadListRuntime.ts
+packages/react/src/api/ThreadRuntime.ts
+packages/react/src/context/react/AssistantContext.ts
+packages/react/src/context/react/ThreadContext.ts
+packages/react/src/context/react/index.ts
+packages/react/src/primitives/thread/ThreadIf.tsx
+packages/react/src/primitives/threadList/ThreadListIf.tsx
+packages/react/src/primitives/threadList/index.ts
+
+Git diff:
+```diff
+diff --git a/apps/docs/content/docs/api-reference/primitives/Thread.mdx b/apps/docs/content/docs/api-reference/primitives/Thread.mdx
+index 202a486d..bd3916dc 100644
+--- a/apps/docs/content/docs/api-reference/primitives/Thread.mdx
++++ b/apps/docs/content/docs/api-reference/primitives/Thread.mdx
+@@ -184,14 +184,40 @@ Renders children if a condition is met.
+       type: "boolean | undefined",
+       description: "Render children if the thread is running.",
+     },
++    {
++      name: "disabled",
++      type: "boolean | undefined",
++      description: "Render children if the thread is disabled.",
++    },
++    {
++      name: "isLoadingMessages",
++      type: "boolean | undefined",
++      description:
++        "Render children if the thread is currently loading messages. For example, on initial load.",
++    },
+   ]}
+ />
+ 
+ ```tsx
+-<Thread.If empty>
+-  {/* equivalent to <Thread.Empty> */}
+-</Thread.If>
+-<Thread.If empty={false}>
+-  {/* rendered if thread is not empty */}
+-</Thread.If>
++import { ThreadPrimitive } from "@assistant-ui/react"; // Assuming Thread is an alias or part of a composed component
++import { MyLoadingSkeleton } from "./MyCustomComponents"; // Placeholder for your skeleton component
++
++// Example for empty state
++<ThreadPrimitive.If empty>
++  <p>No messages yet. Start the conversation!</p>
++</ThreadPrimitive.If>
++
++// Example for running state
++<ThreadPrimitive.If running>
++  <p>Assistant is typing...</p>
++</ThreadPrimitive.If>
++
++// Example for isLoadingMessages state
++<ThreadPrimitive.If isLoadingMessages={true}>
++  <MyLoadingSkeleton message="Loading messages..." />
++</ThreadPrimitive.If>
++
++<ThreadPrimitive.If isLoadingMessages={false}>
++  {/* Render messages or other content when not loading */}
++</ThreadPrimitive.If>
+ ```
+diff --git a/apps/docs/content/docs/api-reference/primitives/ThreadList.mdx b/apps/docs/content/docs/api-reference/primitives/ThreadList.mdx
+new file mode 100644
+index 00000000..16006f96
+--- /dev/null
++++ b/apps/docs/content/docs/api-reference/primitives/ThreadList.mdx
+@@ -0,0 +1,132 @@
++---
++title: ThreadListPrimitive
++---
++import { ThreadListPrimitive } from "@assistantui/react";
++import { MyThreadListItemComponent, MyLoadingSkeleton } from "../../../../../../components/docs/customComponents/MyCustomComponents"; // Adjusted placeholder path
++import { ParametersTable } from "@/components/docs";
++
++# ThreadListPrimitive
++
++Provides primitives for building a thread list UI. For a complete example, see the [ThreadList guide](/docs/guides/thread-list).
++
++## Anatomy
++
++```tsx
++import { ThreadListPrimitive } from "@assistantui/react";
++import { MyThreadListItemComponent, MyLoadingSkeleton } from "./MyCustomComponents"; // Placeholder
++
++const ThreadList = () => (
++  <ThreadListPrimitive.Root>
++    <ThreadListPrimitive.If isLoading={true}>
++      <MyLoadingSkeleton message="Loading threads..." />
++    </ThreadListPrimitive.If>
++    <ThreadListPrimitive.If isLoading={false}>
++      <ThreadListPrimitive.Items components={{ ThreadListItem: MyThreadListItemComponent }} />
++    </ThreadListPrimitive.If>
++    <ThreadListPrimitive.New>
++      <button>New Thread</button>
++    </ThreadListPrimitive.New>
++  </ThreadListPrimitive.Root>
++);
++```
++
++## API Reference
++
++### Root
++
++The root container for all parts of the thread list.
++
++This primitive renders a `<div>` element unless `asChild` is set.
++
++<ParametersTable
++  type="ThreadListPrimitiveRootProps"
++  parameters={[
++    {
++      name: "asChild",
++      type: "boolean",
++      description: "Whether to render as a child component.",
++      default: "false",
++    },
++  ]}
++/>
++
++### Items
++
++Renders the list of threads.
++
++<ParametersTable
++  type="ThreadListPrimitiveItemsProps"
++  parameters={[
++    {
++      name: "components",
++      type: "object",
++      description: "Components to use for rendering items.",
++      children: [
++        {
++          type: "object",
++          parameters: [
++            {
++              name: "ThreadListItem",
++              type: "ComponentType<ThreadListItemPrimitiveProps>",
++              description: "Component to render for each thread list item.",
++            },
++          ],
++        },
++      ],
++    },
++    {
++      name: "archived",
++      type: "boolean",
++      description: "Whether to display archived threads instead of active threads.",
++      default: "false",
++    },
++  ]}
++/>
++
++### New
++
++A button or trigger to create a new thread. When clicked, it switches to a new thread context.
++
++This primitive renders a `<button>` element unless `asChild` is set.
++
++<ParametersTable
++  type="ThreadListPrimitiveNewProps"
++  parameters={[
++    {
++      name: "asChild",
++      type: "boolean",
++      description: "Whether to render as a child component.",
++      default: "false",
++    },
++  ]}
++/>
++
++### If
++
++Conditionally renders its children based on the thread list's loading state.
++
++<ParametersTable
++  type="ThreadListPrimitiveIfProps"
++  parameters={[
++    {
++      name: "isLoading",
++      type: "boolean",
++      description:
++        "If true, children render if the thread list is loading. If false, children render if the thread list is NOT loading.",
++    },
++  ]}
++/>
++
++**Example**
++
++```tsx
++import { ThreadListPrimitive } from "@assistantui/react";
++import { MyLoadingSkeleton, MyThreadListItemComponent } from "./MyCustomComponents"; // Placeholder
++
++<ThreadListPrimitive.If isLoading={true}>
++  <MyLoadingSkeleton message="Loading threads..." />
++</ThreadListPrimitive.If>
++<ThreadListPrimitive.If isLoading={false}>
++  <ThreadListPrimitive.Items components={{ ThreadListItem: MyThreadListItemComponent }} />
++</ThreadListPrimitive.If>
++```
+diff --git a/apps/docs/content/docs/api-reference/primitives/meta.json b/apps/docs/content/docs/api-reference/primitives/meta.json
+index 3460891f..51b9833e 100644
+--- a/apps/docs/content/docs/api-reference/primitives/meta.json
++++ b/apps/docs/content/docs/api-reference/primitives/meta.json
+@@ -3,6 +3,7 @@
+   "pages": [
+     "AssistantModal",
+     "Thread",
++    "ThreadList",
+     "Composer",
+     "Message",
+     "Error",
+diff --git a/apps/docs/content/docs/api-reference/runtimes/ThreadListRuntime.mdx b/apps/docs/content/docs/api-reference/runtimes/ThreadListRuntime.mdx
+index 27f4473d..2b46cde6 100644
+--- a/apps/docs/content/docs/api-reference/runtimes/ThreadListRuntime.mdx
++++ b/apps/docs/content/docs/api-reference/runtimes/ThreadListRuntime.mdx
+@@ -29,3 +29,48 @@ const threads = useThreadList((m) => m.threads);
+ ```
+ 
+ <ParametersTable {...ThreadListState} />
++
++> Note: The `isLoading: boolean` field indicates if the thread list is currently being loaded. This is typically `true` when `triggerLoadThreads()` has been called and the operation is in progress.
++
++The `ThreadListRuntime` object also provides a `triggerLoadThreads(): Promise<void>` method. This method initiates the loading of threads. It sets `isLoading` to `true` at the start and `false` once completed or failed. You can use this to explicitly refresh or load the thread list.
++
++### `useThreadListIsLoading`
++
++A convenience hook to specifically access the loading status of the thread list.
++
++**Signature:**
++```typescript
++function useThreadListIsLoading(options?: { optional?: boolean }): boolean;
++```
++
++**Returns:**
++- `boolean`: `true` if the thread list is currently loading, `false` otherwise. Defaults to `false` if the assistant context is not found and `options.optional` is true.
++
++**Example:**
++```tsx
++import { useThreadListIsLoading, useAssistantRuntime } from "@assistant-ui/react";
++import { MyLoadingSpinner, MyThreadDisplay } from "./MyCustomComponents"; // Placeholder
++
++function MyThreadListNavigator() {
++  const isLoading = useThreadListIsLoading();
++  const assistantRuntime = useAssistantRuntime();
++
++  const handleRefreshThreads = () => {
++    assistantRuntime.threads.triggerLoadThreads().catch(err => {
++      console.error("Failed to load threads:", err);
++      // Handle error appropriately
++    });
++  };
++
++  if (isLoading) {
++    return <MyLoadingSpinner message="Loading threads..." />;
++  }
++
++  return (
++    <div>
++      <button onClick={handleRefreshThreads}>Refresh Threads</button>
++      <MyThreadDisplay /> {/* Placeholder for actual thread list display */}
++    </div>
++  );
++}
++```
+diff --git a/apps/docs/content/docs/api-reference/runtimes/ThreadRuntime.mdx b/apps/docs/content/docs/api-reference/runtimes/ThreadRuntime.mdx
+index bb2cadd8..3f89f412 100644
+--- a/apps/docs/content/docs/api-reference/runtimes/ThreadRuntime.mdx
++++ b/apps/docs/content/docs/api-reference/runtimes/ThreadRuntime.mdx
+@@ -34,6 +34,37 @@ const isRunning = useThread((m) => m.isRunning);
+ 
+ <ParametersTable {...ThreadState} />
+ 
++> Note: The `isLoadingMessages: boolean` field indicates if the messages for the thread are currently being loaded, which is typically true on initial mount or if a reload is triggered.
++
++### `useThreadMessagesIsLoading`
++
++A convenience hook to specifically access the message loading status of the current thread.
++
++**Signature:**
++```typescript
++function useThreadMessagesIsLoading(options?: { optional?: boolean }): boolean;
++```
++
++**Returns:**
++- `boolean`: `true` if messages are currently loading for the thread, `false` otherwise. Defaults to `false` if the thread context is not found and `options.optional` is true.
++
++**Example:**
++```tsx
++import { useThreadMessagesIsLoading } from "@assistant-ui/react";
++import { MyLoadingSpinner } from "./MyCustomComponents"; // Placeholder
++
++function MyThreadComponent() {
++  const isLoading = useThreadMessagesIsLoading();
++
++  if (isLoading) {
++    return <MyLoadingSpinner />;
++  }
++
++  // Render thread content...
++  return <>...</>;
++}
++```
++
+ ### `useThreadViewport`
+ 
+ Manage thread viewport state (e.g., scrolling):
+diff --git a/packages/react/src/api/ThreadListRuntime.ts b/packages/react/src/api/ThreadListRuntime.ts
+index 284f20d3..668a122d 100644
+--- a/packages/react/src/api/ThreadListRuntime.ts
++++ b/packages/react/src/api/ThreadListRuntime.ts
+@@ -21,6 +21,7 @@ export type ThreadListState = {
+   readonly newThread: string | undefined;
+   readonly threads: readonly string[];
+   readonly archivedThreads: readonly string[];
++  readonly isLoading: boolean;
+ };
+ 
+ export type ThreadListRuntime = {
+@@ -40,17 +41,6 @@ export type ThreadListRuntime = {
+   switchToNewThread(): Promise<void>;
+ };
+ 
+-const getThreadListState = (
+-  threadList: ThreadListRuntimeCore,
+-): ThreadListState => {
+-  return {
+-    mainThreadId: threadList.mainThreadId,
+-    newThread: threadList.newThreadId,
+-    threads: threadList.threadIds,
+-    archivedThreads: threadList.archivedThreadIds,
+-  };
+-};
+-
+ const getThreadListItemState = (
+   threadList: ThreadListRuntimeCore,
+   threadId: string | undefined,
+@@ -73,6 +63,8 @@ const getThreadListItemState = (
+ export type ThreadListRuntimeCoreBinding = ThreadListRuntimeCore;
+ 
+ export class ThreadListRuntimeImpl implements ThreadListRuntime {
++  private _isLoading: boolean = false;
++  private _currentLoadPromise: Promise<void> | undefined;
+   private _getState;
+   constructor(
+     private _core: ThreadListRuntimeCoreBinding,
+@@ -83,7 +75,13 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
+   ) {
+     const stateBinding = new LazyMemoizeSubject({
+       path: {},
+-      getState: () => getThreadListState(_core),
++      getState: () => ({
++        mainThreadId: _core.mainThreadId,
++        newThread: _core.newThreadId,
++        threads: _core.threadIds,
++        archivedThreads: _core.archivedThreadIds,
++        isLoading: this._isLoading,
++      }),
+       subscribe: (callback) => _core.subscribe(callback),
+     });
+ 
+@@ -127,6 +125,26 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
+     this.getArchivedItemByIndex = this.getArchivedItemByIndex.bind(this);
+   }
+ 
++  public triggerLoadThreads(): Promise<void> {
++    if (this._isLoading && this._currentLoadPromise) {
++      return this._currentLoadPromise;
++    }
++
++    this._isLoading = true;
++    // TODO: Notify subscribers about isLoading change (important for reactivity)
++    // This might require changing how stateBinding is updated, e.g., by adding a dedicated notifier
++    // or ensuring _core.subscribe() is triggered appropriately.
++    // For now, getState() will reflect the change when called.
++
++    this._currentLoadPromise = this._core.getLoadThreadsPromise().finally(() => {
++      this._isLoading = false;
++      this._currentLoadPromise = undefined;
++      // TODO: Notify subscribers about isLoading change (important for reactivity)
++    });
++
++    return this._currentLoadPromise;
++  }
++
+   public switchToThread(threadId: string): Promise<void> {
+     return this._core.switchToThread(threadId);
+   }
+diff --git a/packages/react/src/api/ThreadRuntime.ts b/packages/react/src/api/ThreadRuntime.ts
+index 40db6c8a..33235368 100644
+--- a/packages/react/src/api/ThreadRuntime.ts
++++ b/packages/react/src/api/ThreadRuntime.ts
+@@ -172,11 +172,13 @@ export type ThreadState = {
+    * @deprecated This API is still under active development and might change without notice.
+    */
+   readonly speech: SpeechState | undefined;
++  readonly isLoadingMessages: boolean;
+ };
+ 
+ export const getThreadState = (
+   runtime: ThreadRuntimeCore,
+   threadListItemState: ThreadListItemState,
++  isLoadingMessages: boolean,
+ ): ThreadState => {
+   const lastMessage = runtime.messages.at(-1);
+   return Object.freeze({
+@@ -193,6 +195,7 @@ export const getThreadState = (
+     suggestions: runtime.suggestions,
+     extras: runtime.extras,
+     speech: runtime.speech,
++    isLoadingMessages,
+   });
+ };
+ 
+@@ -277,6 +280,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
+     return this._threadBinding;
+   }
+ 
++  private _isLoadingMessages: boolean = false;
+   private readonly _threadBinding: ThreadRuntimeCoreBinding & {
+     getStateState(): ThreadState;
+   };
+@@ -285,12 +289,15 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
+     threadBinding: ThreadRuntimeCoreBinding,
+     threadListItemBinding: ThreadListItemRuntimeBinding,
+   ) {
++    this._isLoadingMessages = true;
++
+     const stateBinding = new ShallowMemoizeSubject({
+       path: threadBinding.path,
+       getState: () =>
+         getThreadState(
+           threadBinding.getState(),
+           threadListItemBinding.getState(),
++          this._isLoadingMessages,
+         ),
+       subscribe: (callback) => {
+         const sub1 = threadBinding.subscribe(callback);
+@@ -310,6 +317,16 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
+       subscribe: (callback) => threadBinding.subscribe(callback),
+     };
+ 
++    // When the thread is initialized (e.g., messages are loaded from storage),
++    // set isLoadingMessages to false.
++    threadBinding.getState().unstable_on("initialize", () => {
++      this._isLoadingMessages = false;
++      // Reactivity Note: For this change to be immediately reflected in subscribed UI components,
++      // the ShallowMemoizeSubject (stateBinding) would need to be explicitly updated,
++      // or a notification mechanism triggered.
++      // Currently, subscribers will see this change upon the next core event that triggers a re-evaluation.
++    });
++
+     this.composer = new ThreadComposerRuntimeImpl(
+       new NestedSubscriptionSubject({
+         path: {
+diff --git a/packages/react/src/context/react/AssistantContext.ts b/packages/react/src/context/react/AssistantContext.ts
+index 297be09e..ea64fff6 100644
+--- a/packages/react/src/context/react/AssistantContext.ts
++++ b/packages/react/src/context/react/AssistantContext.ts
+@@ -47,3 +47,18 @@ const useThreadListRuntime = (opt: {
+   optional: boolean | undefined;
+ }): ThreadListRuntime | null => useAssistantRuntime(opt)?.threads ?? null;
+ export const useThreadList = createStateHookForRuntime(useThreadListRuntime);
++
++/**
++ * Custom hook to get the loading status of the thread list.
++ *
++ * @param options - Optional parameters.
++ * @param options.optional - If true, the hook will return `false` if the assistant context is not found. Defaults to `false`.
++ * @returns `true` if the thread list is currently loading, `false` otherwise.
++ * @throws Error if the assistant context is not found and `options.optional` is `false`.
++ */
++export function useThreadListIsLoading(options?: {
++  optional?: boolean;
++}): boolean {
++  const threadList = useThreadList(options);
++  return threadList?.isLoading ?? false;
++}
+diff --git a/packages/react/src/context/react/ThreadContext.ts b/packages/react/src/context/react/ThreadContext.ts
+index 22ffc1ff..548cc4e0 100644
+--- a/packages/react/src/context/react/ThreadContext.ts
++++ b/packages/react/src/context/react/ThreadContext.ts
+@@ -60,3 +60,18 @@ export function useThreadModelContext(options?: {
+   if (!runtime) return null;
+   return runtime?.getModelContext();
+ }
++
++/**
++ * Custom hook to get the message loading status of the current thread.
++ *
++ * @param options - Optional parameters.
++ * @param options.optional - If true, the hook will return `false` if the thread context is not found. Defaults to `false`.
++ * @returns `true` if messages are currently loading for the thread, `false` otherwise.
++ * @throws Error if the thread context is not found and `options.optional` is `false`.
++ */
++export function useThreadMessagesIsLoading(options?: {
++  optional?: boolean;
++}): boolean {
++  const thread = useThread(options);
++  return thread?.isLoadingMessages ?? false;
++}
+diff --git a/packages/react/src/context/react/index.ts b/packages/react/src/context/react/index.ts
+index 6adb4bcf..22e6e7d0 100644
+--- a/packages/react/src/context/react/index.ts
++++ b/packages/react/src/context/react/index.ts
+@@ -7,6 +7,7 @@ export {
+   useThreadList,
+   useToolUIs,
+   useToolUIsStore,
++  useThreadListIsLoading,
+ } from "./AssistantContext";
+ 
+ export {
+@@ -18,6 +19,7 @@ export {
+    * @deprecated This method was renamed to `useThreadModelContext`.
+    */
+   useThreadModelContext as useThreadModelConfig,
++  useThreadMessagesIsLoading,
+ } from "./ThreadContext";
+ 
+ export {
+diff --git a/packages/react/src/primitives/thread/ThreadIf.tsx b/packages/react/src/primitives/thread/ThreadIf.tsx
+index 65a4ef82..847e68c1 100644
+--- a/packages/react/src/primitives/thread/ThreadIf.tsx
++++ b/packages/react/src/primitives/thread/ThreadIf.tsx
+@@ -8,6 +8,7 @@ type ThreadIfFilters = {
+   empty: boolean | undefined;
+   running: boolean | undefined;
+   disabled: boolean | undefined;
++  isLoadingMessages?: boolean | undefined;
+ };
+ 
+ type UseThreadIfProps = RequireAtLeastOne<ThreadIfFilters>;
+@@ -20,6 +21,8 @@ const useThreadIf = (props: UseThreadIfProps) => {
+     if (props.running === false && thread.isRunning) return false;
+     if (props.disabled === true && !thread.isDisabled) return false;
+     if (props.disabled === false && thread.isDisabled) return false;
++    if (props.isLoadingMessages === true && !thread.isLoadingMessages) return false;
++    if (props.isLoadingMessages === false && thread.isLoadingMessages) return false;
+ 
+     return true;
+   });
+diff --git a/packages/react/src/primitives/threadList/ThreadListIf.tsx b/packages/react/src/primitives/threadList/ThreadListIf.tsx
+new file mode 100644
+index 00000000..45a9eefd
+--- /dev/null
++++ b/packages/react/src/primitives/threadList/ThreadListIf.tsx
+@@ -0,0 +1,31 @@
++"use client";
++
++import type { FC, PropsWithChildren } from "react";
++import { useThreadListIsLoading } from "../../../context";
++
++type UseThreadListIfProps = {
++  isLoading: boolean;
++};
++
++const useThreadListIf = (props: UseThreadListIfProps): boolean => {
++  const listIsLoading = useThreadListIsLoading();
++
++  if (props.isLoading === true && !listIsLoading) return false;
++  if (props.isLoading === false && listIsLoading) return false;
++
++  return true;
++};
++
++export namespace ThreadListPrimitiveIf {
++  export type Props = PropsWithChildren<UseThreadListIfProps>;
++}
++
++export const ThreadListPrimitiveIf: FC<ThreadListPrimitiveIf.Props> = ({
++  children,
++  ...props
++}) => {
++  const shouldRender = useThreadListIf(props);
++  return shouldRender ? children : null;
++};
++
++ThreadListPrimitiveIf.displayName = "ThreadListPrimitive.If";
+diff --git a/packages/react/src/primitives/threadList/index.ts b/packages/react/src/primitives/threadList/index.ts
+index cd78ae0e..f088d163 100644
+--- a/packages/react/src/primitives/threadList/index.ts
++++ b/packages/react/src/primitives/threadList/index.ts
+@@ -1,3 +1,4 @@
+ export { ThreadListPrimitiveNew as New } from "./ThreadListNew";
+ export { ThreadListPrimitiveItems as Items } from "./ThreadListItems";
+ export { ThreadListPrimitiveRoot as Root } from "./ThreadListRoot";
++export { ThreadListPrimitiveIf as If } from "./ThreadListIf";
+```

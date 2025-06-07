@@ -1,0 +1,220 @@
+---
+name: Claude Documentation Generator
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  claude-docs:
+    # Only run when @claude is mentioned with documentation requests
+    if: |
+      github.event_name == 'issue_comment' &&
+      contains(github.event.comment.body, '@claude') &&
+      (contains(github.event.comment.body, 'generate documentation') ||
+       contains(github.event.comment.body, 'document') ||
+       contains(github.event.comment.body, '/generate-documentation'))
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Claude Code
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+
+      - name: Setup GitHub CLI
+        run: |
+          gh --version
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "claude[bot]"
+          git config --global user.email "claude@anthropic.com"
+
+      - name: Extract PR context
+        id: pr-context
+        run: |
+          # Get PR number from issue comment
+          PR_NUMBER=$(gh api "/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}" --jq '.number')
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
+          # Get PR details
+          gh pr view $PR_NUMBER --json title,body,files > pr-details.json
+
+          # Get the diff for API analysis
+          git fetch origin
+          git diff origin/main...HEAD > pr-changes.diff
+
+          echo "PR Context prepared for Claude analysis"
+
+      - name: Run Claude Documentation Generation
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr-context.outputs.pr_number }}
+        run: |
+          # Create a comprehensive prompt for Claude
+          cat > claude-prompt.md << 'EOF'
+          You are generating documentation for assistant-ui API changes.
+
+          ## Context
+          This is a React component library for building AI chat interfaces. Focus on:
+          - Component APIs and prop interfaces
+          - Custom hooks and their usage
+          - TypeScript types and interfaces
+          - Breaking changes and migration guidance
+
+          ## Your Task
+          Analyze the PR changes and generate clean, informative documentation
+          following these guidelines:
+
+          1. **Component Documentation:**
+             - Show import statements from @assistant-ui/react
+             - Document prop interfaces with TypeScript types
+             - Provide minimal, working examples
+             - Note any provider requirements
+
+          2. **Hook Documentation:**
+             - Explain purpose and use cases
+             - Show parameters and return types
+             - Include basic usage patterns
+
+          3. **Quality Standards:**
+             - Be factual and unopinionated
+             - Only document actual changes in the PR
+             - Ensure examples would actually work
+             - Follow existing documentation patterns
+
+          ## Files Changed
+          EOF
+
+          # Add PR details to prompt
+          echo "### PR Title: $(jq -r '.title' pr-details.json)" >> claude-prompt.md
+          echo "### PR Description:" >> claude-prompt.md
+          jq -r '.body' pr-details.json >> claude-prompt.md
+
+          echo "### Changed Files:" >> claude-prompt.md
+          jq -r '.files[].path' pr-details.json >> claude-prompt.md
+
+          echo "### Key Changes (diff summary):" >> claude-prompt.md
+          head -100 pr-changes.diff >> claude-prompt.md
+
+          echo "" >> claude-prompt.md
+          echo "Please analyze these changes and generate appropriate API documentation." >> claude-prompt.md
+
+          # Run Claude with the documentation generation prompt
+          claude -p "$(cat claude-prompt.md)" \
+            --output-format json \
+            --max-turns 3 \
+            --append-system-prompt "You are a technical documentation expert specializing in React component libraries. Generate clean, factual API documentation." \
+            > claude-output.json
+
+      - name: Process Claude Output
+        id: process-output
+        run: |
+          # Extract the documentation from Claude's response
+          CLAUDE_RESULT=$(jq -r '.result' claude-output.json)
+
+          # Check if Claude generated documentation
+          if [ "$CLAUDE_RESULT" != "null" ] && [ ! -z "$CLAUDE_RESULT" ]; then
+            echo "documentation_generated=true" >> $GITHUB_OUTPUT
+
+            # Let Claude determine the appropriate documentation location and filename
+            # The documentation will be saved with a generate-* prefix
+            # as determined by Claude
+            echo "$CLAUDE_RESULT" > claude-generated-docs.md
+
+            # Extract the file path that Claude created
+            # (it should be in the output)
+            # Claude will have used Write commands to create the file
+            # with appropriate location
+            DOCS_FILE=$(find . -name "generate-*.md" -type f | head -1)
+            if [ -z "$DOCS_FILE" ]; then
+              # Fallback: use the content Claude provided
+              mkdir -p docs
+              DOCS_FILE="docs/generate-api-changes-pr-${{ steps.pr-context.outputs.pr_number }}.md"
+              echo "$CLAUDE_RESULT" > "$DOCS_FILE"
+            fi
+
+            echo "docs_file=$DOCS_FILE" >> $GITHUB_OUTPUT
+
+            # Create a summary for the PR comment
+            cat > pr-comment.md << EOF
+          ## 📚 API Documentation Generated
+
+          Claude has analyzed this PR and generated documentation for the API changes.
+
+          **[📖 View Full Documentation](\$DOCS_FILE)**
+
+          The documentation covers:
+          - New components and hooks
+          - Modified APIs and breaking changes
+          - Usage examples with TypeScript
+          - Migration guidance where applicable
+
+          Please review the generated documentation for accuracy and completeness.
+          EOF
+          else
+            echo "documentation_generated=false" >> $GITHUB_OUTPUT
+            echo "No API changes detected or documentation generation failed." > pr-comment.md
+          fi
+
+      - name: Commit Documentation
+        if: steps.process-output.outputs.documentation_generated == 'true'
+        run: |
+          # Add the generated documentation (Claude determines location and filename)
+          git add . -A
+
+          # Commit if there are changes
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: auto-generate API documentation for PR #${{ steps.pr-context.outputs.pr_number }}
+
+          Generated by Claude Code for assistant-ui API changes.
+
+          - Analyzes component and hook modifications
+          - Provides TypeScript usage examples
+          - Documents breaking changes and migration paths"
+            git push origin HEAD
+          fi
+
+      - name: Update PR Comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Post the documentation summary to the PR
+          gh pr comment ${{ steps.pr-context.outputs.pr_number }} --body-file pr-comment.md
+
+          # Add labels if documentation was generated
+          if [ "${{ steps.process-output.outputs.documentation_generated }}" == "true" ]; then
+            gh pr edit ${{ steps.pr-context.outputs.pr_number }} --add-label "documentation" --add-label "api-changes"
+          fi
+
+      - name: Upload Documentation Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-documentation-pr-${{ steps.pr-context.outputs.pr_number }}
+          path: |
+            generate-*.md
+            docs/generate-*.md
+            documentation/generate-*.md
+            pr-comment.md
+            claude-output.json
+            pr-details.json
+          retention-days: 30
+          if-no-files-found: ignore

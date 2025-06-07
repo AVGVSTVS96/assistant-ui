@@ -120,7 +120,6 @@ jobs:
           # Run Claude with the documentation generation prompt
           claude -p "$(cat claude-prompt.md)" \
             --output-format json \
-            --max-turns 3 \
             --append-system-prompt "You are a technical documentation expert specializing in React component libraries. Generate clean, factual API documentation." \
             > claude-output.json
 
